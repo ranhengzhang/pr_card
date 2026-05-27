@@ -1,0 +1,417 @@
+/* ========================================
+   GitHub PR 卡片样式
+   支持三种主题: light, dark, github
+   ======================================== */
+
+/* 基础重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========================================
+   主题变量定义
+   ======================================== */
+
+/* Light 主题 */
+.theme-light {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f6f8fa;
+    --bg-tertiary: #eaeef2;
+    --text-primary: #1f2328;
+    --text-secondary: #656d76;
+    --text-tertiary: #8c959f;
+    --border-color: #d0d7de;
+    --accent-open: #1a7f37;
+    --accent-merged: #8250df;
+    --accent-closed: #cf222e;
+    --accent-draft: #6e7781;
+    --additions-color: #1a7f37;
+    --deletions-color: #cf222e;
+    --shadow: 0 1px 3px rgba(31, 35, 40, 0.12), 0 8px 24px rgba(66, 74, 83, 0.12);
+}
+
+/* Dark 主题 */
+.theme-dark {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --text-primary: #e6edf3;
+    --text-secondary: #7d8590;
+    --text-tertiary: #6e7681;
+    --border-color: #30363d;
+    --accent-open: #3fb950;
+    --accent-merged: #a371f7;
+    --accent-closed: #f85149;
+    --accent-draft: #8b949e;
+    --additions-color: #3fb950;
+    --deletions-color: #f85149;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* GitHub 主题 (模仿 GitHub 界面) */
+.theme-github {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f6f8fa;
+    --bg-tertiary: #f3f4f6;
+    --text-primary: #24292f;
+    --text-secondary: #57606a;
+    --text-tertiary: #6e7781;
+    --border-color: #d0d7de;
+    --accent-open: #1a7f37;
+    --accent-merged: #8250df;
+    --accent-closed: #cf222e;
+    --accent-draft: #6e7781;
+    --additions-color: #1a7f37;
+    --deletions-color: #cf222e;
+    --shadow: 0 1px 2px rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.1);
+}
+
+/* ========================================
+   卡片容器
+   ======================================== */
+.pr-card {
+    width: var(--card-width, 800px);
+    min-height: 200px;
+    padding: 24px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+/* ========================================
+   头部区域
+   ======================================== */
+.pr-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.pr-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.status-icon {
+    width: 14px;
+    height: 14px;
+}
+
+/* 状态样式 */
+.status-open {
+    background: color-mix(in srgb, var(--accent-open) 15%, transparent);
+    color: var(--accent-open);
+}
+
+.status-merged {
+    background: color-mix(in srgb, var(--accent-merged) 15%, transparent);
+    color: var(--accent-merged);
+}
+
+.status-closed {
+    background: color-mix(in srgb, var(--accent-closed) 15%, transparent);
+    color: var(--accent-closed);
+}
+
+.status-draft {
+    background: color-mix(in srgb, var(--accent-draft) 15%, transparent);
+    color: var(--accent-draft);
+}
+
+.pr-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+    flex: 1;
+    word-break: break-word;
+}
+
+/* ========================================
+   仓库信息
+   ======================================== */
+.pr-repo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.repo-icon {
+    color: var(--text-tertiary);
+}
+
+.repo-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.branch-arrow {
+    color: var(--text-tertiary);
+}
+
+/* ========================================
+   描述区域
+   ======================================== */
+.pr-body {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    max-height: 200px;
+    overflow: auto;
+}
+
+/* Markdown 内容样式 */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 8px 0 4px 0;
+    color: var(--text-primary);
+}
+
+.markdown-body p {
+    margin: 4px 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+    margin: 4px 0;
+    padding-left: 20px;
+}
+
+.markdown-body li {
+    margin: 2px 0;
+}
+
+.markdown-body code {
+    background: var(--bg-tertiary);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.markdown-body pre {
+    background: var(--bg-tertiary);
+    padding: 8px;
+    border-radius: 4px;
+    overflow: auto;
+    font-size: 12px;
+}
+
+.markdown-body pre code {
+    background: none;
+    padding: 0;
+}
+
+.markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 12px;
+}
+
+.markdown-body th,
+.markdown-body td {
+    border: 1px solid var(--border-color);
+    padding: 4px 8px;
+    text-align: left;
+}
+
+.markdown-body th {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+}
+
+.markdown-body blockquote {
+    border-left: 3px solid var(--border-color);
+    margin: 8px 0;
+    padding-left: 12px;
+    color: var(--text-secondary);
+}
+
+/* ========================================
+   统计信息
+   ======================================== */
+.pr-stats {
+    display: flex;
+    gap: 24px;
+    padding: 16px 0;
+    margin-bottom: 16px;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+}
+
+.stat-icon {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.stat-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+}
+
+.stat-item.additions .stat-value,
+.stat-item.additions .stat-icon {
+    color: var(--additions-color);
+}
+
+.stat-item.deletions .stat-value,
+.stat-item.deletions .stat-icon {
+    color: var(--deletions-color);
+}
+
+/* ========================================
+   底部区域
+   ======================================== */
+.pr-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.pr-author {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.author-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.author-avatar-placeholder {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.author-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.pr-date {
+    color: var(--text-secondary);
+}
+
+/* ========================================
+   标签
+   ======================================== */
+.pr-labels {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.pr-label {
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.pr-label-more {
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+}
+
+/* ========================================
+   PR 编号
+   ======================================== */
+.pr-number {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* ========================================
+   响应式调整
+   ======================================== */
+@media (max-width: 600px) {
+    .pr-card {
+        padding: 16px;
+    }
+
+    .pr-title {
+        font-size: 16px;
+    }
+
+    .pr-stats {
+        gap: 16px;
+    }
+
+    .pr-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

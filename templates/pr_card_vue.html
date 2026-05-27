@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR Card</title>
+    <!-- 使用国内 CDN 加速 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
+    <!-- Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body::-webkit-scrollbar {
+            display: none; /* 隐藏滚动条 */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            min-height: 100%;
+            position: relative;
+            z-index: -1;
+            background: none;
+        }
+
+        body {
+            font-family: 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'vivo Sans', 'Noto Color Emoji', 'Segoe UI Emoji', sans-serif;
+            /* background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 50%, #bbdefb 100%);
+            background-attachment: scroll; */
+            padding: 60px 40px;
+            /* 截图时2倍缩放 */
+            transform: scale(2);
+            transform-origin: top left;
+            width: 50%;
+        }
+
+        /* 等宽字体 */
+        code, pre, .mono {
+            font-family: 'Maple Mono SC NF', 'Sarasa Mono SC', 'Noto Color Emoji', 'Segoe UI Emoji', monospace;
+        }
+
+        #app {
+            /* max-width: 1000px; */
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 毛玻璃卡片效果 - 蓝白主题 */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 40px;
+            box-shadow: 0 8px 32px rgba(25, 118, 210, 0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(25, 118, 210, 0.2);
+        }
+
+        /* PR 头部卡片 - 水平布局 */
+        .pr-header-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 24px 32px;
+        }
+
+        /* 状态图标 */
+        .pr-status-icon {
+            flex-shrink: 0;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .pr-status-icon.merged {
+            background: #8957ff;
+            color: #ffffff;
+        }
+
+        .pr-status-icon.open {
+            background: #238636;
+            color: #ffffff;
+        }
+
+        .pr-status-icon.closed {
+            background: #f85149;
+            color: #ffffff;
+        }
+
+        .pr-status-icon.draft {
+            background: #6e7681;
+            color: #ffffff;
+        }
+
+        /* PR 信息区域 */
+        .pr-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .pr-title-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pr-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1565c0;
+            line-height: 1.4;
+        }
+
+        .pr-number {
+            font-size: 16px;
+            color: #64b5f6;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        /* 标签区域 */
+        .labels-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .label-tag {
+            padding: 4px 10px;
+            border-radius: 50px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        /* ========== 时间线容器 ========== */
+        .timeline-container {
+            position: relative;
+            padding-left: 60px; /* 为头像和连接线留出空间 */
+        }
+
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            left: 18px; /* 总线位置：头像中心线 */
+            top: 0; /* 从第一个头像中心开始 */
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #1976d2, #64b5f6, #1976d2);
+            border-radius: 1px;
+        }
+
+        /* ========== 通用内容卡片样式 ========== */
+        .content-card {
+            position: relative;
+            margin: 48px 0 24px;
+        }
+
+        .content-card:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 时间线节点 - 位于总线上 */
+        .content-card::before {
+            content: '';
+            position: absolute;
+            left: -48px; /* 节点位置：总线上 */
+            top: -6px; /* 节点中心与头像中心对齐 */
+            width: 10px;
+            height: 10px;
+            background: #1976d2;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 2px #1976d2;
+            z-index: 2;
+        }
+
+        /* 连接线 - 从总线节点连接到卡片 */
+        .content-card::after {
+            content: '';
+            position: absolute;
+            left: -34px; /* 从节点右侧开始 */
+            top: 0 ; /* 垂直居中于节点 */
+            width: 20px; /* 连接线长度 */
+            height: 2px;
+            background: #1976d2;
+            z-index: 1;
+        }
+
+        /* 头像样式 - 中心点对齐卡片左上角 */
+        .card-avatar {
+            position: absolute;
+            left: -22px;
+            top: -22px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            background: linear-gradient(white, white) padding-box,
+                        linear-gradient(135deg, #1976d2, #64b5f6 40%, #64b5f6 60%, #1976d2) border-box;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            object-fit: cover;
+            z-index: 10;
+        }
+
+        .card-avatar-placeholder {
+            position: absolute;
+            left: -52px;
+            top: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1976d2, #42a5f5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+            border: 3px solid rgba(25, 118, 210, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        /* ========== 时间线平铺事件样式 ========== */
+        .timeline-event-flat {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 36px;
+            margin: 24px 0;
+        }
+
+        /* 平铺事件图标 */
+        .event-icon-flat {
+            position: absolute;
+            left: -55px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #ffffff;
+            border: 2px solid #1976d2;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        /* 事件类型颜色 */
+        .event-icon-flat.event-created {
+            background: linear-gradient(135deg, #1976d2, #42a5f5);
+        }
+
+        .event-icon-flat.event-merged {
+            background: linear-gradient(135deg, #8957ff, #a371f7);
+        }
+
+        .event-icon-flat.event-closed {
+            background: linear-gradient(135deg, #f85149, #fa7b72);
+        }
+
+        .event-icon-flat.event-labeled {
+            background: linear-gradient(135deg, #4caf50, #81c784);
+        }
+
+        .event-icon-flat.event-unlabeled {
+            background: linear-gradient(135deg, #ff9800, #ffb74d);
+        }
+
+        .event-icon-flat.event-commit {
+            background: linear-gradient(135deg, #607d8b, #90a4ae);
+        }
+
+        /* 平铺事件头像 */
+        .event-avatar-flat {
+            position: absolute;
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #1976d2;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        /* 平铺事件信息 */
+        .event-info-flat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: nowrap;
+            flex: 1;
+            min-width: 0;
+            margin-left: 4px;
+        }
+
+        .event-title-flat {
+            font-weight: 500;
+            color: #424242;
+            font-size: 13px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .event-desc-flat {
+            font-size: 12px;
+            color: #64b5f6;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+
+        /* 平铺事件中的 label 胶囊 */
+        .event-label-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .event-date-flat {
+            font-size: 11px;
+            color: #b0bec5;
+            margin-left: auto;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* 卡片内容区域 - 内凹效果 */
+        .card-content {
+            background: transparent; /* 背景透明 */
+            border-radius: 16px;
+            padding: 16px;
+            margin-left: 0; /* 连接线已连接到卡片边缘 */
+            position: relative;
+        }
+
+        /* 内部背景层 - 绝对定位填充 */
+        .card-content-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+            opacity: 0.5;
+            /* 使用filter: drop-shadow()实现边框效果，跟随clip-path形状 */
+            filter: drop-shadow(0 0 1px rgb(25, 118, 210));
+        }
+
+        /* 裁切层 - 负责backdrop-filter和clip-path */
+        .card-content-clip {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            /* 左上角内切圆角，与头像呼应 - 通过Vue动态生成clip-path */
+        }
+
+        /* 卡片头部 */
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            padding-left: 24px; /* 为头像留出更多左边空间 */
+            border-bottom: 1px solid rgba(25, 118, 210, 0.1);
+            position: relative;
+        }
+
+        .card-author {
+            font-weight: 600;
+            color: #1565c0;
+            font-size: 14px;
+        }
+
+        .card-date {
+            font-size: 12px;
+            color: #64b5f6;
+        }
+
+        /* 卡片正文 */
+        .card-body {
+            font-size: 14px;
+            color: #424242;
+            line-height: 1.8;
+            position: relative;
+        }
+
+        .card-body h1,
+        .card-body h2,
+        .card-body h3,
+        .card-body h4 {
+            color: #1565c0;
+            margin: 16px 0 12px 0;
+        }
+
+        .card-body p {
+            margin-bottom: 12px;
+        }
+
+        .card-body code {
+            background: rgba(25, 118, 210, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #1976d2;
+        }
+
+        .card-body pre {
+            background: rgba(25, 118, 210, 0.05);
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 12px 0;
+            border: 1px solid rgba(25, 118, 210, 0.1);
+        }
+
+        .card-body pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .card-body ul,
+        .card-body ol {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+
+        .card-body li {
+            margin-bottom: 6px;
+        }
+
+        .card-body a {
+            color: #1976d2;
+            text-decoration: none;
+            background: rgba(25, 118, 210, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            word-break: break-all;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            border: 1px solid rgba(25, 118, 210, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .card-body a:hover {
+            background: rgba(25, 118, 210, 0.2);
+            border-color: rgba(25, 118, 210, 0.4);
+            text-decoration: none;
+        }
+
+        .card-body img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+
+        .card-body table {
+            border-collapse: collapse;
+            margin: 12px 0;
+        }
+
+        .card-body th,
+        .card-body td {
+            padding: 8px 12px;
+            border: 1px solid rgba(25, 118, 210, 0.2);
+        }
+
+        .card-body th {
+            background: rgba(25, 118, 210, 0.1);
+            font-weight: 600;
+            color: #1565c0;
+            text-align: center;
+        }
+
+        /* 表格对齐方式 - Markdown 语法支持 */
+        .card-body th[align="left"],
+        .card-body td[align="left"] {
+            text-align: left;
+        }
+
+        .card-body th[align="center"],
+        .card-body td[align="center"] {
+            text-align: center;
+        }
+
+        .card-body th[align="right"],
+        .card-body td[align="right"] {
+            text-align: right;
+        }
+
+        /* GitHub 用户提及样式 @username */
+        .github-mention {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: rgba(25, 118, 210, 0.1);
+            border-radius: 12px;
+            color: #1976d2;
+            font-weight: 500;
+            text-decoration: none;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        .github-mention img {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin: 0;
+        }
+
+        /* PR 引用样式 #num */
+        .pr-reference {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: rgba(137, 87, 255, 0.1);
+            border-radius: 12px;
+            color: #8957ff;
+            font-weight: 500;
+            text-decoration: none;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        .pr-reference::before {
+            content: '#';
+        }
+    </style>
+</head>
+<body>
+    {% raw %}
+    <div id="app">
+        <!-- PR 头部信息 - 水平布局 -->
+        <div class="glass-card pr-header-card">
+            <!-- 状态图标 -->
+            <div class="pr-status-icon" :class="prStatus.class">
+                <i :class="prStatus.icon"></i>
+            </div>
+
+            <!-- PR 信息 -->
+            <div class="pr-info">
+                <div class="pr-title-row">
+                    <h1 class="pr-title">{{ pr.title }}</h1>
+                    <span class="pr-number">#{{ pr.number }}</span>
+                </div>
+                
+                <!-- 标签 -->
+                <div class="labels-section" v-if="pr.labels && pr.labels.length > 0">
+                    <span v-for="(label, index) in pr.labels" :key="index" class="label-tag"
+                          :style="getLabelStyle(label)">
+                        {{ label.name }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 时间线内容区 -->
+        <div class="timeline-container">
+            <!-- 时间线事件（按时间顺序排列，描述和评论显示为卡片，其它平铺） -->
+            <template v-for="(event, index) in timelineEvents" :key="'event-' + index">
+                <!-- 非卡片事件：平铺显示（创建、提交、标签、合并/关闭等） -->
+                <div v-if="!event.is_card" class="timeline-event-flat">
+                    <div class="event-icon-flat" :class="event.icon_class">
+                        <i :class="['fas', event.icon]"></i>
+                    </div>
+                    <!-- 操作者头像 -->
+                    <img v-if="event.author_avatar"
+                         :src="event.author_avatar"
+                         :alt="event.author"
+                         class="event-avatar-flat"
+                         :title="event.author">
+                    <div class="event-info-flat">
+                        <span class="event-title-flat">{{ event.title }}</span>
+                        <!-- Label 胶囊 -->
+                        <span v-if="event.label" class="event-label-tag"
+                              :style="getLabelStyle(event.label)">
+                            {{ event.label.name }}
+                        </span>
+                        <span v-else-if="event.description" class="event-desc-flat">{{ event.description }}</span>
+                        <span class="event-date-flat">{{ formatDate(event.date) }}</span>
+                    </div>
+                </div>
+
+                <!-- 卡片事件：PR 描述 -->
+                <div v-if="event.is_card && event.card_type === 'pr'" class="content-card" :key="'pr-card-' + index">
+                    <!-- 发起人头像 -->
+                    <img v-if="event.author_avatar" 
+                         :src="event.author_avatar" 
+                         :alt="event.author"
+                         class="card-avatar"
+                         :title="event.author">
+                    <div v-else class="card-avatar-placeholder">
+                        {{ event.author ? event.author[0].toUpperCase() : '?' }}
+                    </div>
+                    
+                    <div class="card-content" :ref="el => setCardRef(el, 'pr')">
+                        <div class="card-content-bg">
+                            <div class="card-content-clip" :style="getClipPath('pr')"></div>
+                        </div>
+                        <div class="card-header">
+                            <span class="card-author">{{ event.author || 'Unknown' }}</span>
+                            <span class="card-date">{{ formatDate(event.date) }}</span>
+                        </div>
+                        <div class="card-body" v-html="renderMarkdown(event.body)"></div>
+                    </div>
+                </div>
+
+                <!-- 卡片事件：评论 -->
+                <div v-if="event.is_card && event.card_type === 'comment'" class="content-card" :key="'comment-card-' + event.comment_index">
+                    <!-- 评论者头像 -->
+                    <img v-if="event.author_avatar" 
+                         :src="event.author_avatar" 
+                         :alt="event.author"
+                         class="card-avatar">
+                    <div v-else class="card-avatar-placeholder">
+                        {{ event.author ? event.author[0].toUpperCase() : '?' }}
+                    </div>
+
+                    <!-- 评论内容 -->
+                    <div class="card-content" :ref="el => setCardRef(el, 'comment-' + event.comment_index)">
+                        <div class="card-content-bg">
+                            <div class="card-content-clip" :style="getClipPath('comment-' + event.comment_index)"></div>
+                        </div>
+                        <div class="card-header">
+                            <span class="card-author">{{ event.author || 'Unknown' }}</span>
+                            <span class="card-date">{{ formatDate(event.date) }}</span>
+                        </div>
+                        <div class="card-body" v-html="renderMarkdown(event.body)"></div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+    {% endraw %}
+
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/marked/9.1.2/marked.min.js"></script>
+    
+    <script>
+        // 使用 Jinja2 安全地嵌入数据
+        const PR_DATA = {{ pr_data | tojson | safe }};
+        const COMMENTS_DATA = {{ comments | tojson | safe }};
+        const COMMITS_DATA = {{ commits | tojson | safe }};
+        const EVENTS_DATA = {{ events | tojson | safe }};
+        const TIMELINE_EVENTS_DATA = {{ timeline_events | tojson | safe }};
+
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    pr: PR_DATA,
+                    comments: COMMENTS_DATA,
+                    commits: COMMITS_DATA,
+                    events: EVENTS_DATA,
+                    timelineEvents: TIMELINE_EVENTS_DATA,
+                    clipPaths: {}, // 存储每个卡片的 clip-path
+                    cardRefs: {}, // 存储卡片引用
+                };
+            },
+            async mounted() {
+                // 等待 DOM 完全渲染
+                await this.$nextTick();
+                // 更新 clip-path
+                this.updateClipPaths();
+                // 等待 clip-path 计算完成
+                await new Promise(resolve => setTimeout(resolve, 500));
+                // 标记渲染完成（供截图工具检测）
+                document.body.setAttribute('data-render-complete', 'true');
+                // 监听窗口大小变化
+                window.addEventListener('resize', this.updateClipPaths);
+            },
+            beforeUnmount() {
+                window.removeEventListener('resize', this.updateClipPaths);
+            },
+            computed: {
+                prStatus() {
+                    const pr = this.pr;
+                    if (pr.merged) {
+                        return { text: 'Merged', class: 'merged', icon: 'fas fa-code-merge' };
+                    } else if (pr.draft) {
+                        return { text: 'Draft', class: 'draft', icon: 'fas fa-pen' };
+                    } else if (pr.state === 'closed') {
+                        return { text: 'Closed', class: 'closed', icon: 'fas fa-xmark' };
+                    } else {
+                        return { text: 'Open', class: 'open', icon: 'fas fa-code-pull-request' };
+                    }
+                },
+                labelEvents() {
+                    // 过滤出标签相关事件
+                    if (!this.events) return [];
+                    return this.events.filter(e => e.event === 'labeled' || e.event === 'unlabeled');
+                }
+            },
+            methods: {
+                setCardRef(el, key) {
+                    if (el) {
+                        this.cardRefs[key] = el;
+                    }
+                },
+                generateClipPath(width, height) {
+                    // 生成内切圆角的 path: 左上角半径 28px
+                    return `path('M 28,0 L ${width},0 L ${width},${height} L 0,${height} L 0,28 A 3,3 0 0,1 3,25 A 24,24 0 0,0 25,3 A 3,3 0 0,1 28,0 Z')`;
+                },
+                updateClipPaths() {
+                    this.$nextTick(() => {
+                        // 更新所有卡片
+                        Object.keys(this.cardRefs).forEach(key => {
+                            const card = this.cardRefs[key];
+                            if (card) {
+                                const rect = card.getBoundingClientRect();
+                                this.clipPaths[key] = { clipPath: this.generateClipPath(rect.width, rect.height) };
+                            }
+                        });
+                    });
+                },
+                getClipPath(key) {
+                    return this.clipPaths[key] || {};
+                },
+                renderMarkdown(text) {
+                    if (!text) return '';
+                    marked.setOptions({
+                        breaks: true,
+                        gfm: true,
+                        headerIds: false,
+                        mangle: false
+                    });
+                    // 先处理 @username 和 #num
+                    let processedText = this.processMentions(text);
+                    return marked.parse(processedText);
+                },
+                processMentions(text) {
+                    // GitHub username 规则：字母数字开头，可包含连字符，不能以连字符开头或结尾
+                    const userMentionRegex = /@([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)/g;
+                    
+                    // PR 编号匹配：# 后跟数字，# 和数字之间没有空格
+                    const prRefRegex = /#(\d+)/g;
+                    
+                    // 处理 @username -> 带头像的链接
+                    text = text.replace(userMentionRegex, (match, username) => {
+                        const avatarUrl = `https://github.com/${username}.png?size=32`;
+                        return `<a href="https://github.com/${username}" class="github-mention" target="_blank" rel="noopener">
+                            <img src="${avatarUrl}" alt="@${username}" onerror="this.style.display='none'">
+                            ${username}
+                        </a>`;
+                    });
+                    
+                    // 处理 #num -> PR 引用样式
+                    text = text.replace(prRefRegex, (match, num) => {
+                        return `<span class="pr-reference">${num}</span>`;
+                    });
+                    
+                    return text;
+                },
+                formatDate(dateStr) {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+                getLabelStyle(label) {
+                    const color = label.color || '6e7681';
+                    const bgColor = '#' + color;
+                    const r = parseInt(color.substr(0, 2), 16);
+                    const g = parseInt(color.substr(2, 2), 16);
+                    const b = parseInt(color.substr(4, 2), 16);
+                    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                    const textColor = brightness > 128 ? '#000000' : '#ffffff';
+                    return {
+                        backgroundColor: bgColor + '40',
+                        color: textColor,
+                        borderColor: bgColor
+                    };
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
