@@ -53,9 +53,13 @@ playwright/.cache/
 .gitnexus
 
 .claude/
-.trae/
 *cache
 .env
 AGENTS*
 CLAUDE*
 outputs/*
+
+.trae/*
+!.trae/rules/
+.trae/rules/*
+!.trae/rules/code_standards.md

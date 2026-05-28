@@ -3,9 +3,12 @@
 提供从 GitHub API 获取 Pull Request 数据的功能.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+import re
 
 from github import Github, PullRequest, Repository, UnknownObjectException
 from github.Auth import Token
@@ -79,17 +82,17 @@ class PRData:
             "draft": self.draft,
             "author": self.author,
             "author_avatar": self.author_avatar,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "merged_at": self.merged_at.isoformat() if self.merged_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else "",
+            "updated_at": self.updated_at.isoformat() if self.updated_at else "",
+            "merged_at": self.merged_at.isoformat() if self.merged_at else "",
+            "closed_at": self.closed_at.isoformat() if self.closed_at else "",
             "body": self.body,
             "additions": self.additions,
             "deletions": self.deletions,
             "changed_files": self.changed_files,
             "commits": self.commits,
-            "comments": self.comments,
+            "comments_count": self.comments,
             "labels": self.labels,
-            "body": self.body,
             "html_url": self.html_url,
             "base_branch": self.base_branch,
             "head_branch": self.head_branch,
@@ -265,7 +268,6 @@ class GitHubFetcher:
         commits = []
         for commit in pr.get_commits():
             author_name = commit.commit.author.name if commit.commit and commit.commit.author else "Unknown"
-            # 优先使用 GitHub API 返回的作者头像，如果没有则尝试构造
             if commit.author and hasattr(commit.author, 'avatar_url') and commit.author.avatar_url:
                 author_avatar = commit.author.avatar_url
             else:
@@ -300,7 +302,6 @@ class GitHubFetcher:
         events = []
         for event in pr.get_issue_events():
             actor = event.actor.login if event.actor else "Unknown"
-            # 优先使用 GitHub API 返回的操作者头像，如果没有则尝试构造
             if event.actor and hasattr(event.actor, 'avatar_url') and event.actor.avatar_url:
                 actor_avatar = event.actor.avatar_url
             else:
@@ -313,7 +314,6 @@ class GitHubFetcher:
                 "created_at": event.created_at.isoformat() if event.created_at else "",
             }
 
-            # 标签相关事件
             if event.event in ["labeled", "unlabeled"] and event.label:
                 event_data["label"] = {
                     "name": event.label.name,
@@ -340,10 +340,10 @@ class GitHubFetcher:
         Raises:
             ValueError: 当 URL 格式无效或 PR 不存在时.
         """
-        parts = self._parse_pr_url(url)
+        parts = self.parse_pr_url(url)
         return self.fetch_pr_data(parts["owner"], parts["repo"], parts["number"])
 
-    def _parse_pr_url(self, url: str) -> Dict[str, Any]:
+    def parse_pr_url(self, url: str) -> Dict[str, Any]:
         """解析 PR URL.
 
         Args:
@@ -355,8 +355,6 @@ class GitHubFetcher:
         Raises:
             ValueError: 当 URL 格式无效时.
         """
-        import re
-
         pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
         match = re.search(pattern, url)
 

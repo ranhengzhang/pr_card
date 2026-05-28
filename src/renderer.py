@@ -3,6 +3,8 @@
 提供将 PR 数据渲染为 HTML 卡片的功能.
 """
 
+from __future__ import annotations
+
 import re
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -12,7 +14,8 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 from src.config import get_config
 from src.fetcher import PRData
-from src.utils import markdown_to_text
+from src.markdown_utils import markdown_to_text
+from src.format_utils import format_number
 
 
 class CardRenderer:
@@ -43,13 +46,11 @@ class CardRenderer:
             loader=FileSystemLoader(str(self._template_dir)),
             autoescape=False,
         )
-        # 确保 Jinja2 正确处理 Unicode
         self._env.policies['json.dumps_kwargs'] = {'ensure_ascii': False}
 
-        # 添加自定义过滤器
         self._env.filters["markdown"] = self._markdown_filter
         self._env.filters["truncate"] = self._truncate_filter
-        self._env.filters["format_number"] = self._format_number_filter
+        self._env.filters["format_number"] = format_number
 
     def _markdown_filter(self, text: Optional[str]) -> str:
         """将 Markdown 转换为 HTML.
@@ -63,7 +64,6 @@ class CardRenderer:
         if not text:
             return ""
 
-        # 预处理：确保表格前面有空行（修复不规范的 Markdown）
         text = self._fix_table_markdown(text)
 
         return markdown.markdown(
@@ -88,11 +88,10 @@ class CardRenderer:
         for i, line in enumerate(lines):
             stripped = line.strip()
 
-            # 检查是否是表格行（以 | 开头和结尾）
             if stripped.startswith('|') and stripped.endswith('|'):
-                # 检查 result 中的前一行是否为空行（使用 result 而不是 lines）
                 if result and result[-1].strip() != '':
-                    # 前一行不是空行，添加空行
+                    result.append('')
+                elif not result:
                     result.append('')
 
             result.append(line)
@@ -115,21 +114,6 @@ class CardRenderer:
         if len(text) <= length:
             return text
         return text[: length - 3].rstrip() + "..."
-
-    def _format_number_filter(self, num: int) -> str:
-        """格式化数字.
-
-        Args:
-            num: 数字.
-
-        Returns:
-            格式化后的字符串(如 1.2k).
-        """
-        if num >= 1000000:
-            return f"{num / 1000000:.1f}M"
-        if num >= 1000:
-            return f"{num / 1000:.1f}k"
-        return str(num)
 
     def render(
         self,
@@ -164,7 +148,6 @@ class CardRenderer:
         if use_vue_template:
             return self._render_vue_template(pr_data, comments or [], commits or [], events or [])
         else:
-            # 准备模板上下文
             context = self._prepare_context(pr_data, card_style, card_width)
 
             try:
@@ -187,32 +170,8 @@ class CardRenderer:
         Returns:
             渲染后的 HTML 字符串.
         """
-        # 准备 PR 数据字典
-        pr_dict = {
-            "number": pr_data.number,
-            "title": pr_data.title,
-            "state": pr_data.state,
-            "merged": pr_data.merged,
-            "draft": pr_data.draft,
-            "author": pr_data.author,
-            "author_avatar": pr_data.author_avatar,
-            "created_at": pr_data.created_at.isoformat() if pr_data.created_at else "",
-            "updated_at": pr_data.updated_at.isoformat() if pr_data.updated_at else "",
-            "merged_at": pr_data.merged_at.isoformat() if pr_data.merged_at else "",
-            "closed_at": pr_data.closed_at.isoformat() if pr_data.closed_at else "",
-            "body": pr_data.body,
-            "additions": pr_data.additions,
-            "deletions": pr_data.deletions,
-            "changed_files": pr_data.changed_files,
-            "commits": pr_data.commits,
-            "comments_count": pr_data.comments,
-            "labels": pr_data.labels,
-            "html_url": pr_data.html_url,
-            "base_branch": pr_data.base_branch,
-            "head_branch": pr_data.head_branch,
-        }
+        pr_dict = pr_data.to_dict()
 
-        # 生成操作记录时间线
         timeline_events = self._generate_timeline_events(pr_data, comments, commits, events)
 
         context = {
@@ -249,7 +208,6 @@ class CardRenderer:
         """
         events = []
 
-        # 1. PR 创建事件
         events.append({
             "type": "created",
             "icon": "fa-plus",
@@ -261,7 +219,6 @@ class CardRenderer:
             "author_avatar": pr_data.author_avatar,
         })
 
-        # 2. 提交记录
         if commits:
             for commit in commits:
                 events.append({
@@ -276,7 +233,6 @@ class CardRenderer:
                     "author_avatar": commit.get('author_avatar', ''),
                 })
 
-        # 3. 标签事件
         if events_data:
             for event in events_data:
                 event_type = event.get('event', '')
@@ -319,7 +275,6 @@ class CardRenderer:
                         },
                     })
 
-        # 4. 合并事件
         if pr_data.merged and pr_data.merged_at:
             events.append({
                 "type": "merged",
@@ -332,7 +287,6 @@ class CardRenderer:
                 "author_avatar": pr_data.author_avatar,
             })
 
-        # 5. 关闭事件（未合并的关闭）
         elif pr_data.state == "closed" and pr_data.closed_at and not pr_data.merged:
             events.append({
                 "type": "closed",
@@ -345,7 +299,6 @@ class CardRenderer:
                 "author_avatar": pr_data.author_avatar,
             })
 
-        # 6. PR 描述（作为卡片事件插入时间线）
         if pr_data.body and pr_data.created_at:
             events.append({
                 "type": "description",
@@ -361,7 +314,6 @@ class CardRenderer:
                 "body": pr_data.body,
             })
 
-        # 7. 评论（作为卡片事件插入时间线）
         if comments:
             for comment in comments:
                 events.append({
@@ -379,7 +331,6 @@ class CardRenderer:
                     "comment_index": comments.index(comment),
                 })
 
-        # 按时间排序
         events.sort(key=lambda x: x["date"])
 
         return events
@@ -397,10 +348,8 @@ class CardRenderer:
         Returns:
             模板上下文字典.
         """
-        # 确定状态显示
         status_info = self._get_status_info(pr_data)
 
-        # 格式化时间
         created_date = pr_data.created_at.strftime("%Y-%m-%d") if pr_data.created_at else ""
 
         return {
@@ -471,7 +420,6 @@ class CardRenderer:
         Returns:
             渲染后的 HTML 字符串.
         """
-        # 将字典转换为 PRData 对象
         pr_data = self._dict_to_pr_data(data)
         return self.render(pr_data, style, width)
 
@@ -505,6 +453,7 @@ class CardRenderer:
             created_at=parse_date(data.get("created_at")) or datetime.now(),
             updated_at=parse_date(data.get("updated_at")) or datetime.now(),
             merged_at=parse_date(data.get("merged_at")),
+            closed_at=parse_date(data.get("closed_at")),
             body=data.get("body"),
             additions=data.get("additions", 0),
             deletions=data.get("deletions", 0),

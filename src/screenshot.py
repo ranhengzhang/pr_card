@@ -3,6 +3,8 @@
 提供使用 Playwright 将 HTML 渲染为图片的功能.
 """
 
+from __future__ import annotations
+
 import asyncio
 import os
 import platform
@@ -15,7 +17,7 @@ from PIL import Image
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext
 
 from src.config import get_config
-from src.utils import get_logger
+from src.logger import get_logger
 
 
 class ScreenshotTaker:
@@ -60,26 +62,21 @@ class ScreenshotTaker:
         use_system_chrome = self._config.settings.use_system_chrome
         chrome_path = self._config.settings.chrome_path
 
-        # 启动浏览器
         browser_launcher = getattr(self._playwright, browser_type)
 
         launch_options: Dict[str, Any] = {"headless": headless}
         if proxy:
             launch_options["proxy"] = proxy
 
-        # 如果使用系统 Chrome,指定可执行文件路径
         if use_system_chrome and browser_type == "chromium":
             chrome_executable = chrome_path or self._find_system_chrome()
             if chrome_executable:
                 launch_options["executable_path"] = chrome_executable
-                from src.utils import get_logger
                 get_logger().info(f"使用系统 Chrome: {chrome_executable}")
             else:
-                from src.utils import get_logger
                 get_logger().warning("未找到系统 Chrome,将使用 Playwright 内置浏览器")
 
         self._browser = await browser_launcher.launch(**launch_options)
-        # 创建上下文时不设置device_scale_factor，使用默认缩放
         self._context = await self._browser.new_context()
 
     def _find_system_chrome(self) -> Optional[str]:
@@ -88,20 +85,15 @@ class ScreenshotTaker:
         Returns:
             Chrome 可执行文件路径,如果未找到则返回 None.
         """
-        import platform
-        import shutil
-
         system = platform.system()
 
         if system == "Windows":
-            # Windows 常见 Chrome 安装路径
             possible_paths = [
                 r"C:\Program Files\Google\Chrome\Application\chrome.exe",
                 r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
                 r"C:\Users\{}\AppData\Local\Google\Chrome\Application\chrome.exe".format(os.environ.get("USERNAME", "")),
                 r"C:\Users\{}\AppData\Local\Google\Chrome\Bin\chrome.exe".format(os.environ.get("USERNAME", "")),
             ]
-            # 也尝试从环境变量 PATH 中查找
             chrome_from_path = shutil.which("chrome")
             if chrome_from_path:
                 possible_paths.insert(0, chrome_from_path)
@@ -121,13 +113,11 @@ class ScreenshotTaker:
                 "/usr/bin/chromium-browser",
                 "/snap/bin/chromium",
             ]
-            # 从 PATH 中查找
             for name in ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]:
                 path = shutil.which(name)
                 if path:
                     possible_paths.insert(0, path)
 
-        # 检查路径是否存在
         for path in possible_paths:
             if path and os.path.isfile(path):
                 return path
@@ -146,52 +136,39 @@ class ScreenshotTaker:
         from PIL import ImageDraw
         import math
 
-        # 创建渐变背景
         width, height = img.size
         background = Image.new('RGB', (width, height), (255, 255, 255))
         draw = ImageDraw.Draw(background)
 
-        # 135度倾斜渐变: 从左上到右下
-        # 计算对角线长度作为渐变距离
         diag = int(math.sqrt(width ** 2 + height ** 2))
 
-        # 绘制倾斜渐变 (135deg: #e3f2fd -> #ffffff -> #bbdefb)
         for i in range(-diag, diag):
-            # 计算渐变比例 (0 -> 0.5 -> 1)
             ratio = (i + diag) / (2 * diag)
 
             if ratio < 0.5:
-                # 前半部分: #e3f2fd (227, 242, 253) -> #ffffff (255, 255, 255)
                 local_ratio = ratio * 2
                 r = int(227 + (255 - 227) * local_ratio)
                 g = int(242 + (255 - 242) * local_ratio)
                 b = int(253 + (255 - 253) * local_ratio)
             else:
-                # 后半部分: #ffffff (255, 255, 255) -> #bbdefb (187, 222, 251)
                 local_ratio = (ratio - 0.5) * 2
                 r = int(255 + (187 - 255) * local_ratio)
                 g = int(255 + (222 - 255) * local_ratio)
                 b = int(255 + (251 - 255) * local_ratio)
 
-            # 绘制135度倾斜线 (斜率为 -1)
-            # 线条方程: x + y = i + width (调整偏移使渐变覆盖整个图片)
             offset = i + width
             points = []
 
-            # 左边界 (x=0): y = offset
             if 0 <= offset <= height:
                 points.append((0, offset))
 
-            # 右边界 (x=width): y = offset - width
             y_right = offset - width
             if 0 <= y_right <= height:
                 points.append((width, y_right))
 
-            # 上边界 (y=0): x = offset
             if 0 <= offset <= width:
                 points.append((offset, 0))
 
-            # 下边界 (y=height): x = offset - height
             x_bottom = offset - height
             if 0 <= x_bottom <= width:
                 points.append((x_bottom, height))
@@ -199,11 +176,9 @@ class ScreenshotTaker:
             if len(points) >= 2:
                 draw.line(points, fill=(r, g, b), width=2)
 
-        # 将原图粘贴到背景上（处理透明背景）
         if img.mode == 'RGBA':
             background.paste(img, (0, 0), img)
         else:
-            # 如果是白色背景的图片，直接混合
             background = Image.blend(background, img.convert('RGB'), alpha=1.0)
 
         return background
@@ -215,7 +190,6 @@ class ScreenshotTaker:
             image_path: 图片文件路径.
         """
         with Image.open(image_path) as img:
-            # 添加渐变背景
             img_with_bg = self._add_gradient_background(img)
             img_with_bg.save(image_path, "PNG")
 
@@ -262,10 +236,8 @@ class ScreenshotTaker:
         if not self._browser or not self._context:
             raise RuntimeError("浏览器未启动,请先调用 start() 或作为上下文管理器使用")
 
-        # 确保输出目录存在
         self._config.settings.ensure_output_dir()
 
-        # 生成输出路径
         if output_path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = self._config.settings.output_path / f"pr_card_{timestamp}.png"
@@ -273,12 +245,10 @@ class ScreenshotTaker:
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # 创建新页面(或复用已有页面)
         if not hasattr(self, '_keep_open_page') or self._keep_open_page is None:
             self._keep_open_page = await self._context.new_page()
         page = self._keep_open_page
 
-        # 监听图片加载
         pending_images = set()
 
         async def handle_route(route, request):
@@ -294,30 +264,22 @@ class ScreenshotTaker:
         page.on("response", handle_response)
 
         try:
-            # 设置视口大小为 1440 (720*2) 以支持2倍缩放
             await page.set_viewport_size({"width": 1440, "height": 720})
 
-            # 加载 HTML 内容
             await page.set_content(html_content, wait_until="networkidle", timeout=timeout)
 
-            # 等待特定选择器(如果指定)
             if wait_for_selector:
                 await page.wait_for_selector(wait_for_selector, timeout=timeout)
 
-            # 等待卡片元素渲染完成
             await page.wait_for_selector(selector, timeout=timeout)
 
-            # 等待所有图片加载完成
             while pending_images:
                 await page.wait_for_timeout(100)
 
-            # 等待 Vue 渲染完成标记
             await page.wait_for_selector("body[data-render-complete='true']", timeout=timeout)
 
-            # 截图（使用 device 缩放保持高清）
             await page.screenshot(path=str(output_path), type="png", full_page=True, animations="disabled", scale="device", omit_background=True)
 
-            # 添加渐变背景
             self._add_gradient_background_to_image(output_path)
 
             return output_path.resolve()
@@ -363,9 +325,7 @@ class ScreenshotTaker:
             except Exception as e:
                 last_error = e
                 if attempt < max_retries - 1:
-                    # 等待后重试
                     await asyncio.sleep(1 * (attempt + 1))
-                    # 重新启动浏览器
                     await self.close()
                     await self.start()
 
@@ -410,7 +370,6 @@ class ScreenshotManager:
         from src.config import get_config
         config = get_config()
 
-        # 生成输出路径
         if output_path is None:
             config.settings.ensure_output_dir()
 
@@ -419,7 +378,6 @@ class ScreenshotManager:
             output_path = config.settings.output_path / f"pr_card{style_suffix}_{timestamp}.png"
 
         if keep_open:
-            # 保持浏览器打开模式
             logger = get_logger()
             logger.info("保持浏览器打开模式 - 截图完成后窗口将保持打开")
             logger.info("按 Ctrl+C 退出程序")
@@ -430,7 +388,6 @@ class ScreenshotManager:
                 result = await taker.take_screenshot(html_content, output_path, selector=selector, keep_page_open=True)
                 logger.info(f"✓ 截图已保存: {result}")
                 logger.info("浏览器窗口保持打开,查看完成后按 Ctrl+C 退出")
-                # 保持运行直到用户中断
                 while True:
                     await asyncio.sleep(1)
             except KeyboardInterrupt:
@@ -439,7 +396,6 @@ class ScreenshotManager:
                 await taker.close()
             return result
         else:
-            # 正常模式:使用上下文管理器自动关闭
             async with ScreenshotTaker() as taker:
                 return await taker.take_screenshot(html_content, output_path, selector=selector)
 
@@ -474,7 +430,6 @@ class ScreenshotManager:
             return paths
 
 
-# 便捷函数
 async def capture_html(
     html_content: str,
     output_path: Optional[Path] = None,

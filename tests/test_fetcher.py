@@ -64,7 +64,7 @@ class TestGitHubFetcher(AsyncTestCase):
         ]
 
         for url, expected in test_cases:
-            result = fetcher._parse_pr_url(url)
+            result = fetcher.parse_pr_url(url)
             self.assertEqual(result, expected)
 
         fetcher.close()
@@ -81,7 +81,7 @@ class TestGitHubFetcher(AsyncTestCase):
 
         for url in invalid_urls:
             with self.assertRaises(ValueError) as context:
-                fetcher._parse_pr_url(url)
+                fetcher.parse_pr_url(url)
             self.assertIn("无效的 PR URL", str(context.exception))
 
         fetcher.close()

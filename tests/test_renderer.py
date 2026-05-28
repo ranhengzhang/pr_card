@@ -55,9 +55,7 @@ class TestCardRenderer(AsyncTestCase):
 | **作词** | `尹纯青Eyn` |"""
 
         result = renderer._markdown_filter(md_table)
-        print(f"\n表格转换结果:\n{result}")
 
-        # 验证表格标签存在
         self.assertIn("<table>", result)
         self.assertIn("</table>", result)
         self.assertIn("<tr>", result)
@@ -86,11 +84,11 @@ class TestCardRenderer(AsyncTestCase):
 
     def test_format_number_filter(self) -> None:
         """测试数字格式化过滤器."""
-        renderer = CardRenderer()
+        from src.format_utils import format_number
 
-        self.assertEqual(renderer._format_number_filter(999), "999")
-        self.assertEqual(renderer._format_number_filter(1500), "1.5k")
-        self.assertEqual(renderer._format_number_filter(2500000), "2.5M")
+        self.assertEqual(format_number(999), "999")
+        self.assertEqual(format_number(1500), "1.5k")
+        self.assertEqual(format_number(2500000), "2.5M")
 
     def test_get_status_info_merged(self) -> None:
         """测试合并状态信息."""
@@ -138,7 +136,7 @@ class TestCardRenderer(AsyncTestCase):
         pr_data = self.create_mock_pr_data(
             title="Test Title",
             body="Test Body",
-            labels=["bug", "feature"],
+            labels=[{"name": "bug", "color": "d73a4a"}, {"name": "feature", "color": "a2eeef"}],
         )
 
         context = renderer._prepare_context(pr_data, "dark", 1000)

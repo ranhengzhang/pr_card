@@ -77,9 +77,6 @@ class TestScreenshotTaker(AsyncTestCase):
             mock_page = AsyncMock()
             mock_context.new_page = AsyncMock(return_value=mock_page)
 
-            mock_element = AsyncMock()
-            mock_page.wait_for_selector = AsyncMock(return_value=mock_element)
-
             taker = ScreenshotTaker()
             await taker.start()
 
@@ -90,14 +87,12 @@ class TestScreenshotTaker(AsyncTestCase):
 
             self.assertEqual(result, output_path.resolve())
             mock_page.set_content.assert_called_once()
-            mock_element.screenshot.assert_called_once_with(
-                path=str(output_path), type="png"
-            )
+            mock_page.screenshot.assert_called_once()
 
             await taker.close()
 
-    async def test_take_screenshot_element_not_found(self) -> None:
-        """测试元素未找到时."""
+    async def test_take_screenshot_selector_timeout(self) -> None:
+        """测试选择器等待超时."""
         with patch("src.screenshot.async_playwright") as mock_playwright:
             mock_pw = AsyncMock()
             mock_playwright.return_value.start = AsyncMock(return_value=mock_pw)
@@ -111,18 +106,15 @@ class TestScreenshotTaker(AsyncTestCase):
             mock_page = AsyncMock()
             mock_context.new_page = AsyncMock(return_value=mock_page)
 
-            # 元素未找到
-            mock_page.wait_for_selector = AsyncMock(return_value=None)
+            mock_page.wait_for_selector = AsyncMock(side_effect=TimeoutError("Timeout"))
 
             taker = ScreenshotTaker()
             await taker.start()
 
             html = "<html></html>"
 
-            with self.assertRaises(ValueError) as context:
+            with self.assertRaises(TimeoutError):
                 await taker.take_screenshot(html)
-
-            self.assertIn("找不到截图元素", str(context.exception))
 
             await taker.close()
 

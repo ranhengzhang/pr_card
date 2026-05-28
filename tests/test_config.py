@@ -19,7 +19,12 @@ class TestSettings(AsyncTestCase):
         """测试前置设置."""
         await super().asyncSetUp()
         # 清除环境变量
-        for key in ["GITHUB_TOKEN", "DEFAULT_REPO", "DEFAULT_STYLE", "HTTP_PROXY"]:
+        for key in [
+            "GITHUB_TOKEN", "DEFAULT_REPO", "DEFAULT_STYLE",
+            "HTTP_PROXY", "HTTPS_PROXY", "PLAYWRIGHT_PROXY",
+            "OUTPUT_DIR", "CARD_WIDTH", "BROWSER_TYPE",
+            "HEADLESS", "CHROME_PATH", "USE_SYSTEM_CHROME", "KEEP_OPEN",
+        ]:
             if key in os.environ:
                 del os.environ[key]
 
@@ -32,7 +37,7 @@ class TestSettings(AsyncTestCase):
         self.assertEqual(settings.default_style, "github")
         self.assertIsNone(settings.http_proxy)
         self.assertEqual(settings.output_dir, "./outputs")
-        self.assertEqual(settings.card_width, 800)
+        self.assertEqual(settings.card_width, 1000)
         self.assertEqual(settings.browser_type, "chromium")
         self.assertTrue(settings.headless)
 

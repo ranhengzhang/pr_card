@@ -4,6 +4,8 @@
 配置优先级: 命令行参数 > 环境变量 > .env 文件 > 代码默认值
 """
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -36,23 +38,18 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # GitHub 配置
     github_token: Optional[str] = Field(default=None, description="GitHub Personal Access Token")
 
-    # 默认配置
     default_repo: Optional[str] = Field(default=None, description="默认仓库 (owner/repo)")
     default_style: str = Field(default="github", description="默认卡片样式")
 
-    # 代理配置
     http_proxy: Optional[str] = Field(default=None, alias="HTTP_PROXY")
     https_proxy: Optional[str] = Field(default=None, alias="HTTPS_PROXY")
     playwright_proxy: Optional[str] = Field(default=None, alias="PLAYWRIGHT_PROXY")
 
-    # 输出配置
     output_dir: str = Field(default="./outputs", alias="OUTPUT_DIR")
     card_width: int = Field(default=1000, alias="CARD_WIDTH")
 
-    # 浏览器配置
     browser_type: str = Field(default="chromium", alias="BROWSER_TYPE")
     headless: bool = Field(default=True, alias="HEADLESS")
     chrome_path: Optional[str] = Field(default=None, alias="CHROME_PATH")
@@ -219,7 +216,6 @@ class ConfigManager:
             os.environ["HTTPS_PROXY"] = self._settings.https_proxy
 
 
-# 全局配置实例
 _config_manager: Optional[ConfigManager] = None
 
 
