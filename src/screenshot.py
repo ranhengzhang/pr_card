@@ -58,6 +58,8 @@ class ScreenshotTaker:
 
         browser_type = self._config.settings.browser_type
         headless = self._config.settings.headless
+        if self._config.settings.keep_open:
+            headless = False
         proxy = self._config.get_proxy_for_playwright()
         use_system_chrome = self._config.settings.use_system_chrome
         chrome_path = self._config.settings.chrome_path

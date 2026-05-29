@@ -57,6 +57,8 @@ def markdown_to_text(markdown_content: Optional[str]) -> str:
     text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
     text = re.sub(r"<([^>]+)>", r"\1", text)
 
+    text = re.sub(r"^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?", "", text, flags=re.MULTILINE)
+
     text = re.sub(r"^>\s*", "", text, flags=re.MULTILINE)
 
     text = re.sub(r"^[-*+]\s+", "", text, flags=re.MULTILINE)
